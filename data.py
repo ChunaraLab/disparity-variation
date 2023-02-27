@@ -300,7 +300,7 @@ def create_acs_query_object_model(outcome):
     else:
         raise NotImplementedError(outcome)
     
-def get_acs_data(npop, frac, outcome, us_state, group, use_weights=False):
+def get_acs_data(rng, npop, frac, outcome, us_state, group, use_weights=False):
     data_source = ACSDataSource(survey_year='2018', horizon='1-Year', survey='person',
                                 root_dir='data')
     data = data_source.get_data(states=[us_state], download=False)
@@ -335,7 +335,6 @@ def get_acs_data(npop, frac, outcome, us_state, group, use_weights=False):
         G_acs = (X_acs['FHISP']==1.0).to_numpy().squeeze()
 
     # Subsample to given group proportion
-    rng = np.random.default_rng(seed=1)
     if frac is not None:
         desired_A1 = int(frac*npop)
         desired_A0 = npop - desired_A1
@@ -363,6 +362,12 @@ def get_acs_data(npop, frac, outcome, us_state, group, use_weights=False):
     X_acs, Y_acs = X_acs[shuffled_indices], Y_acs[shuffled_indices]
     P_acs = np.ones((X_acs.shape[0],))
     S_acs = P_acs
+
+    # Keep npop samples
+    X_acs = X_acs[:npop]
+    Y_acs = Y_acs[:npop]
+    P_acs = P_acs[:npop]
+    S_acs = S_acs[:npop]
     print("Achieved counts and Y mean per group", [(i, np.sum(X_acs[:,1]==i), Y_acs[X_acs[:,1]==i].mean()) for i in np.unique(X_acs[:,1])])
 
     return X_acs, P_acs, S_acs, Y_acs
@@ -374,7 +379,7 @@ BRFSS_RACE_CODE = {
     'AmericanIndianAlaskan': 3.0,
 }
 
-def get_brfss_data(npop, frac, outcome, us_state, group, use_weights=False):
+def get_brfss_data(rng, npop, frac, outcome, us_state, group, use_weights=False):
     '''
     Codebook for 2014 BRFSS https://www.cdc.gov/brfss/annual_data/2014/pdf/codebook14_llcp.pdf
     '''
@@ -428,7 +433,6 @@ def get_brfss_data(npop, frac, outcome, us_state, group, use_weights=False):
         G_acs = (X_acs['_RACE']==8.0).to_numpy().squeeze()
 
     # Subsample to given group proportion
-    rng = np.random.default_rng(seed=1)
     if frac is not None:
         desired_A1 = int(frac*npop)
         desired_A0 = npop - desired_A1
@@ -456,11 +460,17 @@ def get_brfss_data(npop, frac, outcome, us_state, group, use_weights=False):
     X_acs, Y_acs = X_acs[shuffled_indices], Y_acs[shuffled_indices]
     P_acs = np.ones((X_acs.shape[0],))
     S_acs = P_acs
+
+    # Keep npop samples
+    X_acs = X_acs[:npop]
+    Y_acs = Y_acs[:npop]
+    P_acs = P_acs[:npop]
+    S_acs = S_acs[:npop]
     print("Achieved counts and Y mean per group", [(i, np.sum(X_acs[:,1]==i), Y_acs[X_acs[:,1]==i].mean()) for i in np.unique(X_acs[:,1])])
 
     return X_acs, P_acs, S_acs, Y_acs
 
-def get_acs_data_model(npop, frac, outcome, us_state, group, use_weights=False):
+def get_acs_data_model(rng, npop, frac, outcome, us_state, group, use_weights=False):
     data_source = ACSDataSource(survey_year='2018', horizon='1-Year', survey='person',
                               root_dir='data')
     data = data_source.get_data(states=[us_state], download=False)
@@ -497,7 +507,7 @@ def get_acs_data_model(npop, frac, outcome, us_state, group, use_weights=False):
     X_acs = X_acs.drop(['PWGTP','FHISP'], axis=1)
     
     X_train, X_test, Y_train, Y_test, G_train, G_test, W_train, W_test = train_test_split(
-    X_acs, Y_acs, G_acs, W_acs, test_size=0.3, random_state=0)
+        X_acs, Y_acs, G_acs, W_acs, test_size=0.3, random_state=0)
     
     if outcome in ['income_binary','coverage_binary','travel_binary']:
         model = make_pipeline(StandardScaler(), GradientBoostingClassifier())
@@ -521,7 +531,6 @@ def get_acs_data_model(npop, frac, outcome, us_state, group, use_weights=False):
         raise NotImplementedError(f'Loss for {outcome}')
     
     # Subsample to given group proportion
-    rng = np.random.default_rng(seed=1)
     if frac is not None:
         desired_A1 = int(frac*npop)
         desired_A0 = npop - desired_A1
@@ -549,13 +558,19 @@ def get_acs_data_model(npop, frac, outcome, us_state, group, use_weights=False):
     X_acs, Y_acs = X_acs[shuffled_indices], Y_acs[shuffled_indices]
     P_acs = np.ones((X_acs.shape[0],))
     S_acs = P_acs
+
+    # Keep npop samples
+    X_acs = X_acs[:npop]
+    Y_acs = Y_acs[:npop]
+    P_acs = P_acs[:npop]
+    S_acs = S_acs[:npop]
     print("Achieved counts and Y mean per group", [(i, np.sum(X_acs[:,1]==i), Y_acs[X_acs[:,1]==i].mean()) for i in np.unique(X_acs[:,1])])
 
     return X_acs, P_acs, S_acs, Y_acs
 
-def get_synthetic_data(args):
+def get_synthetic_data(rng, args):
     sigma_all = lambda x: (1,1)
-    train_data_generator = Simulate_data_synthetic(args.sim_noise, args.sim_fract)
+    train_data_generator = Simulate_data_synthetic(rng, args.sim_noise, args.sim_fract)
     data = gendata_single(args.npop, sigma_all, train_data_generator)
     X, P, S, Y = zip(*data)
     X, P, S, Y = np.array(X), np.array(P), np.array(S), np.array(Y)
@@ -590,48 +605,18 @@ def gendata_multiple(n_0, sigmas, gen_xy):
             data[i].append((x,p,s,y))
     return data
 
-def sigma_uniform_sample(rate):
-    return lambda x: (rate, np.random.binomial(1, p=rate))
+def sigma_uniform_sample(rng, rate):
+    return lambda x: (rate, rng.binomial(1, p=rate))
 
-def sigma_group_sample(x, rate_A0, rate_A1):
+def sigma_group_sample(rng, x, rate_A0, rate_A1):
     if x[1]==1:  # TODO allow group information at arbitrary index
-        return rate_A1, np.random.binomial(1, p=rate_A1)
+        return rate_A1, rng.binomial(1, p=rate_A1)
     else:
-        return rate_A0, np.random.binomial(1, p=rate_A0)
-
-def sigma_x(x):
-    p_l, p_r = 0.5, 0.9
-    if x[1] < -0.5 or x[1] > 0.5:
-        p = p_l
-    else:
-        p = p_r
-    return p, np.random.binomial(1, p=p)
-
-
-class Simulate_data(object):
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        
-        # Add intercept
-        self.x = np.concatenate((np.ones((self.x.shape[0],1)), self.x), axis=1)
-        self.step = -1
-    def reset(self):
-        self.step = 0
-        return self.x[self.step,:]
-    def observe(self):
-        self.step+=1
-        if self.step==self.x.shape[0]:
-            self.step=0 # loop again through x
-        return self.x[self.step,:]
-    def reward(self, context, action):
-        return self.y[self.step]
-        # w = np.ones(self.x.shape[1])/self.x.shape[1]
-        # return np.dot(self.x[self.step,:], w)
-    
+        return rate_A0, rng.binomial(1, p=rate_A0)
 
 class Simulate_data_synthetic(object):
-    def __init__(self, noise, fract, mu=24, delta_mu=4):
+    def __init__(self, rng, noise, fract, mu=24, delta_mu=4):
+        self.rng = rng
         self.dim = 5 # including intercept
         self.step = -1
         self.noise = noise
@@ -644,31 +629,31 @@ class Simulate_data_synthetic(object):
     def observe(self):
         self.step+=1
         # A is gender
-        A = np.random.binomial(1, self.fract)
+        A = self.rng.binomial(1, self.fract)
         # X1,X2,X3 are therapy, antidepressant use, regular physical exercise
-        X1 = np.random.binomial(1, 0.3)
-        X2 = np.random.binomial(1, 0.25)
-        X3 = np.random.binomial(1, 1/(1+np.exp(-1*(-0.5 + 0.75*A + 1*X1 + 1.5*X2))))
+        X1 = self.rng.binomial(1, 0.3)
+        X2 = self.rng.binomial(1, 0.25)
+        X3 = self.rng.binomial(1, 1/(1+np.exp(-1*(-0.5 + 0.75*A + 1*X1 + 1.5*X2))))
         # Y is CES-D score
-        # self.Y = 24 - 3*A + 3*X1 - 4*X2 - 6*X3 - 1.5*A*X3 + np.random.normal(loc=0,scale=4.5)
+        # self.Y = 24 - 3*A + 3*X1 - 4*X2 - 6*X3 - 1.5*A*X3 + self.rng.normal(loc=0,scale=4.5)
         
-        self.Y = self.mu + self.delta_mu*(1-A) + np.random.normal(loc=0,scale=2 + (1-A)*self.noise)
-        # self.Y = self.mu + self.delta_mu*(1-A) + np.random.standard_t(df= 1 + int(A*self.noise))
-        # self.Y = 24 + 3*A - 4*X1 - 6*X2 - 3*X3 - 1.5*X2*X3 + np.random.normal(loc=0,scale=4 + (1-A)*self.noise)
-        # self.Y = 24 + 3*A - 4*X1 - 6*X2 - 3*X3 - 1.5*X2*X3 + np.random.standard_t(df= 2 + int(A*self.noise))
+        self.Y = self.mu + self.delta_mu*(1-A) + self.rng.normal(loc=0,scale=2 + (1-A)*self.noise)
+        # self.Y = self.mu + self.delta_mu*(1-A) + self.rng.standard_t(df= 1 + int(A*self.noise))
+        # self.Y = 24 + 3*A - 4*X1 - 6*X2 - 3*X3 - 1.5*X2*X3 + self.rng.normal(loc=0,scale=4 + (1-A)*self.noise)
+        # self.Y = 24 + 3*A - 4*X1 - 6*X2 - 3*X3 - 1.5*X2*X3 + self.rng.standard_t(df= 2 + int(A*self.noise))
         self.X = np.array([1,A,X1,X2,X3])
 
         # # Variance depending on X
-        # # X1 = np.random.uniform(-1,1)
-        # X1 = np.random.normal(0,1)
-        # self.Y = 8*X1 + 2*np.exp(X1)*np.random.normal(0,1)
-        # # self.Y = 8*X1 + 2*np.exp(X1)*np.random.standard_t(4)
+        # # X1 = self.rng.uniform(-1,1)
+        # X1 = self.rng.normal(0,1)
+        # self.Y = 8*X1 + 2*np.exp(X1)*self.rng.normal(0,1)
+        # # self.Y = 8*X1 + 2*np.exp(X1)*self.rng.standard_t(4)
         # self.X = np.array([1,X1])
 
         # # Variance depending on A
-        # X1 = np.random.normal(0,1)
-        # A = np.random.binomial(1, 0.5)
-        # self.Y = 8*X1 + np.exp(A*X1)*np.random.normal(0,2)
+        # X1 = self.rng.normal(0,1)
+        # A = self.rng.binomial(1, 0.5)
+        # self.Y = 8*X1 + np.exp(A*X1)*self.rng.normal(0,2)
         # self.X = np.array([1,A,X1])
 
         return self.X
@@ -692,23 +677,24 @@ class Simulate_data(object):
         return self.y[self.step]
 
 class Dataset():
-    def __init__(self, args):
+    def __init__(self, rng, args):
+        self.rng = rng
         self.args = args
     def simulator(self):
         if self.args.dataset_name=='synthetic':
-            sim_data = Simulate_data_synthetic(self.args.sim_noise, self.args.sim_fract)
+            sim_data = Simulate_data_synthetic(self.rng, self.args.sim_noise, self.args.sim_fract)
         elif self.args.dataset_name=='acs':
-            X_full, _, _, Y_full = get_acs_data(self.args.npop, self.args.sim_fract, self.args.outcome, 
+            X_full, _, _, Y_full = get_acs_data(self.rng, self.args.npop, self.args.sim_fract, self.args.outcome, 
                                                 us_state=self.args.us_state, group=self.args.group,
                                                 use_weights=self.args.use_weights)
             sim_data = Simulate_data(X_full, Y_full)
         elif self.args.dataset_name=='brfss':
-            X_full, _, _, Y_full = get_brfss_data(self.args.npop, self.args.sim_fract, self.args.outcome, 
+            X_full, _, _, Y_full = get_brfss_data(self.rng, self.args.npop, self.args.sim_fract, self.args.outcome, 
                                                 us_state=self.args.us_state, group=self.args.group,
                                                 use_weights=self.args.use_weights)
             sim_data = Simulate_data(X_full, Y_full)
         elif self.args.dataset_name=='acs_model':
-            X_full, _, _, Y_full = get_acs_data_model(self.args.npop, self.args.sim_fract, self.args.outcome, 
+            X_full, _, _, Y_full = get_acs_data_model(self.rng, self.args.npop, self.args.sim_fract, self.args.outcome, 
                                                 us_state=self.args.us_state, group=self.args.group,
                                                 use_weights=self.args.use_weights)
             sim_data = Simulate_data(X_full, Y_full)
@@ -717,17 +703,17 @@ class Dataset():
         return sim_data
     def population_data(self):
         if self.args.dataset_name=='synthetic':
-            X_full, _, _, Y_full = get_synthetic_data(self.args)
+            X_full, _, _, Y_full = get_synthetic_data(self.rng, self.args)
         elif self.args.dataset_name=='acs':
-            X_full, _, _, Y_full = get_acs_data(self.args.npop, self.args.sim_fract, self.args.outcome, 
+            X_full, _, _, Y_full = get_acs_data(self.rng, self.args.npop, self.args.sim_fract, self.args.outcome, 
                                                 us_state=self.args.us_state, group=self.args.group,
                                                 use_weights=self.args.use_weights)
         elif self.args.dataset_name=='brfss':
-            X_full, _, _, Y_full = get_brfss_data(self.args.npop, self.args.sim_fract, self.args.outcome, 
+            X_full, _, _, Y_full = get_brfss_data(self.rng, self.args.npop, self.args.sim_fract, self.args.outcome, 
                                                 us_state=self.args.us_state, group=self.args.group,
                                                 use_weights=self.args.use_weights)
         elif self.args.dataset_name=='acs_model':
-            X_full, _, _, Y_full = get_acs_data_model(self.args.npop, self.args.sim_fract, self.args.outcome, 
+            X_full, _, _, Y_full = get_acs_data_model(self.rng, self.args.npop, self.args.sim_fract, self.args.outcome, 
                                                 us_state=self.args.us_state, group=self.args.group,
                                                 use_weights=self.args.use_weights)
         else:

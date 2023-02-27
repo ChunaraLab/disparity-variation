@@ -188,23 +188,21 @@ def metrics_inverse_propensity_weighted(X, P, S, Y):
 
 SMALL_NUMBER = 1e-6
 
-def compute_mean_actual(n, gen_xy):
-    sigma = lambda x: (1,1)
-    data = gendata_single(n, sigma, gen_xy)
-    
-    X, P, S, Y = zip(*data)
-
+def compute_mean_actual(X, Y):
+    P = np.ones((X.shape[0],))
+    S = P
     Y_mean, Y_A1_mean, Y_A0_mean, diff_mean, der, theils, frac_A1 = metrics_uniform(X, P, S, Y)
     
-    Y_mean_std_boot = np.std([np.mean(np.random.choice(Y, size=10000)) for _ in range(100)])
-    print(f"Y_mean_std_boot {Y_mean_std_boot}")
+    if False:
+        Y_mean_std_boot = np.std([np.mean(np.random.choice(Y, size=10000)) for _ in range(100)])
+        print(f"Y_mean_std_boot {Y_mean_std_boot}")
 
     return Y_mean, Y_A1_mean, Y_A0_mean, diff_mean, der, theils, frac_A1
 
-def get_sample_uniform(args, nsample, X_full, Y_full):
+def get_sample_uniform(rng, args, nsample, X_full, Y_full):
     npop = X_full.shape[0]
     rate = nsample / npop
-    sigma_uniform = sigma_uniform_sample(rate)
+    sigma_uniform = sigma_uniform_sample(rng, rate)
     train_data_generator = Simulate_data(X_full, Y_full)
     data = gendata_single(npop, sigma_uniform, train_data_generator)
     X, P, S, Y = zip(*data)
@@ -215,7 +213,7 @@ def get_sample_uniform(args, nsample, X_full, Y_full):
     assert X.shape[0]==npop, "Population incorrectly sampled in Uniform"
     return X, P, S, Y
 
-def get_sample_group_equal(args, X_full, Y_full, X_pilot, P_pilot, S_pilot, Y_pilot):
+def get_sample_group_equal(rng, args, X_full, Y_full, X_pilot, P_pilot, S_pilot, Y_pilot):
     n_full = X_full.shape[0]  # population size
     n_full_A1 = np.sum(X_full[:,1]==1)  # TODO handle group information at arbitrary index
     n_full_A0 = n_full - n_full_A1
@@ -231,7 +229,7 @@ def get_sample_group_equal(args, X_full, Y_full, X_pilot, P_pilot, S_pilot, Y_pi
         rate_A1 = 1.0
     else:
       raise RuntimeError("Incorrect logic in Equal")
-    sigma_equal = lambda x: sigma_group_sample(x, rate_A0, rate_A1)
+    sigma_equal = lambda x: sigma_group_sample(rng, x, rate_A0, rate_A1)
     train_data_generator = Simulate_data(X_full, Y_full)
     data = gendata_single(n_full, sigma_equal, train_data_generator)
     X, P, S, Y = zip(*data)
@@ -253,7 +251,7 @@ def get_weighted_stdev(args, Y, weights):
         denominator = np.sum(weights) - 1
         return np.sqrt(numerator/denominator)
     
-def get_sample_stdev_group(args, X_full, Y_full, X_pilot, P_pilot, S_pilot, Y_pilot, target_metric):
+def get_sample_stdev_group(rng, args, X_full, Y_full, X_pilot, P_pilot, S_pilot, Y_pilot, target_metric):
     """
     Optimal allocation for overall, difference, der, ratio metrics
     Stdev, means estimated from the full data
@@ -308,7 +306,7 @@ def get_sample_stdev_group(args, X_full, Y_full, X_pilot, P_pilot, S_pilot, Y_pi
         rate_A1 = 1.0
     else:
       raise RuntimeError("Incorrect logic in Stdev")
-    sigma_stdev = lambda x: sigma_group_sample(x, rate_A0, rate_A1)
+    sigma_stdev = lambda x: sigma_group_sample(rng, x, rate_A0, rate_A1)
     train_data_generator = Simulate_data(X_full, Y_full)
     data = gendata_single(n_full, sigma_stdev, train_data_generator)
     X, P, S, Y = zip(*data)
@@ -318,40 +316,37 @@ def get_sample_stdev_group(args, X_full, Y_full, X_pilot, P_pilot, S_pilot, Y_pi
     print(f"Stdev sampled. Stdev A0,A1={(stdev_A0,stdev_A1)}, group sizes population={(n_full_A0,n_full_A1)}, mean A0,A1={(mean_A0,mean_A1)}, fraction={sample_ratio}, number of samples A0,A1={S[X[:,1]!=1].sum(),S[X[:,1]==1].sum()}, achieved rate A0,A1={(np.mean(S[X[:,1]!=1]),np.mean(S[X[:,1]==1]))}, desired rate A0,A1={(rate_A0,rate_A1)}")
     return X, P, S, Y
 
-def run_exp(args, expid):
+def run_exp(rng, args, X_full, Y_full, expid):
     print('\nRun:{}'.format(expid+1))
 
-    # Sample full data
-    X_full, Y_full = Dataset(args).population_data()
-
     # Sample pilot data
-    X_pilot, P_pilot, S_pilot, Y_pilot = get_sample_uniform(args, args.nsample_pilot, X_full, Y_full)
+    X_pilot, P_pilot, S_pilot, Y_pilot = get_sample_uniform(rng, args, args.nsample_pilot, X_full, Y_full)
     print("pilot", S_pilot.sum(), args.nsample_pilot, X_pilot.shape, Y_pilot.shape)
 
     if args.sampling_method == 'uniform':
-        X_sampled, P_sampled, S_sampled, Y_sampled = get_sample_uniform(args, args.nsample, X_full, Y_full)
+        X_sampled, P_sampled, S_sampled, Y_sampled = get_sample_uniform(rng, args, args.nsample, X_full, Y_full)
         Y_mean, Y_A1_mean, Y_A0_mean, diff_mean, der, theils, frac_A1 = metrics_stratified(X_sampled, P_sampled, S_sampled, Y_sampled,
                                                                                 X_pilot, P_pilot, S_pilot, Y_pilot, sampling_type='uniform')
     elif args.sampling_method == 'equal':
-        X_sampled, P_sampled, S_sampled, Y_sampled = get_sample_group_equal(args, X_full, Y_full,
+        X_sampled, P_sampled, S_sampled, Y_sampled = get_sample_group_equal(rng, args, X_full, Y_full,
                                                                             X_pilot, P_pilot, S_pilot, Y_pilot)
         Y_mean, Y_A1_mean, Y_A0_mean, diff_mean, der, theils, frac_A1 = metrics_stratified(X_sampled, P_sampled, S_sampled, Y_sampled,
                                                                                 X_pilot, P_pilot, S_pilot, Y_pilot, sampling_type='stratified')
     elif args.sampling_method in ['stdev_overall', 'stdev_diff', 'stdev_der', 'stdev_theils', 'oracle_stdev_diff', 'oracle_stdev_der']:
-        X_sampled, P_sampled, S_sampled, Y_sampled = get_sample_stdev_group(args, X_full, Y_full,
+        X_sampled, P_sampled, S_sampled, Y_sampled = get_sample_stdev_group(rng, args, X_full, Y_full,
                                                                             X_pilot, P_pilot, S_pilot, Y_pilot,
                                                                             target_metric=args.sampling_method)
         Y_mean, Y_A1_mean, Y_A0_mean, diff_mean, der, theils, frac_A1 = metrics_stratified(X_sampled, P_sampled, S_sampled, Y_sampled,
                                                                                    X_pilot, P_pilot, S_pilot, Y_pilot, sampling_type='stratified')
     elif args.sampling_method == 'uniform_est_denom':
-        X_sampled, P_sampled, S_sampled, Y_sampled = get_sample_uniform(args, args.nsample, X_full, Y_full)
+        X_sampled, P_sampled, S_sampled, Y_sampled = get_sample_uniform(rng, args, args.nsample, X_full, Y_full)
         Y_mean, Y_A1_mean, Y_A0_mean, diff_mean, der, theils, frac_A1 = metrics_inverse_propensity_weighted(X_sampled, P_sampled, S_sampled, Y_sampled)
     elif args.sampling_method == 'equal_est_denom':
-        X_sampled, P_sampled, S_sampled, Y_sampled = get_sample_group_equal(args, X_full, Y_full,
+        X_sampled, P_sampled, S_sampled, Y_sampled = get_sample_group_equal(rng, args, X_full, Y_full,
                                                                             X_pilot, P_pilot, S_pilot, Y_pilot)
         Y_mean, Y_A1_mean, Y_A0_mean, diff_mean, der, theils, frac_A1 = metrics_inverse_propensity_weighted(X_sampled, P_sampled, S_sampled, Y_sampled)
     elif args.sampling_method == 'stdev_est_denom':
-        X_sampled, P_sampled, S_sampled, Y_sampled = get_sample_stdev_group(args, X_full, Y_full, 
+        X_sampled, P_sampled, S_sampled, Y_sampled = get_sample_stdev_group(rng, args, X_full, Y_full, 
                                                                             X_pilot, P_pilot, S_pilot, Y_pilot,
                                                                             target_metric=args.sampling_method)
         Y_mean, Y_A1_mean, Y_A0_mean, diff_mean, der, theils, frac_A1 = metrics_inverse_propensity_weighted(X_sampled, P_sampled, S_sampled, Y_sampled)
@@ -435,26 +430,12 @@ def create_outdir(args):
     torch.save(args, os.path.join(args.dir, 'args.pt'))
     return args
 
-def run(args, sampling_method, nsample_pilot, nsample, sim_fract, dataset_name, us_state, outcome, group, use_weights):
+def run(rng, args, X_full, Y_full, metrics_true):
     results = []
-
-    args.sampling_method = sampling_method
-    args.nsample_pilot = nsample_pilot
-    args.nsample = nsample
-    args.sim_fract = sim_fract
-    args.dataset_name = dataset_name
-    args.us_state = us_state
-    args.outcome = outcome
-    args.group = group
-    args.use_weights = use_weights
-    args = create_outdir(args)
-
-    assert args.nsample <= args.npop, "Sample size should be less than population size"
-    test_sim_data = Dataset(args).simulator()
-    Y_mean_true, Y_A1_mean_true, Y_A0_mean_true, diff_mean_true, der_true, theils_true, frac_A1_true = compute_mean_actual(args.true_mean_samples, test_sim_data)
+    Y_mean_true, Y_A1_mean_true, Y_A0_mean_true, diff_mean_true, der_true, theils_true, frac_A1_true = metrics_true
 
     for expid in range(args.repeat):
-        results.append(run_exp(args, expid))  # dataset is different for each sampling method
+        results.append(run_exp(rng, args, X_full, Y_full, expid))  # dataset is different for each sampling method
 
     save_runs = {}
     Y_runs = -999*np.ones((args.repeat,9))
@@ -538,12 +519,29 @@ def main(args, datasets, fractmaj_opts, sampling_opts, use_weights):
     errors = []
 
     for (dataset_name, us_state, outcome, group, nsample_pilot, nsample) in datasets:
-        print(f"\n\n======Running {dataset_name, us_state, outcome, group, nsample_pilot, nsample}=========\n\n")
         for sim_fract in fractmaj_opts:
             # Get population data
+            args.nsample_pilot = nsample_pilot
+            args.nsample = nsample
+            args.sim_fract = sim_fract
+            args.dataset_name = dataset_name
+            args.us_state = us_state
+            args.outcome = outcome
+            args.group = group
+            args.use_weights = use_weights
+
+            rng = np.random.default_rng(seed=1)
+            X_full, Y_full = Dataset(rng, args).population_data()
+            metrics_true = compute_mean_actual(X_full, Y_full)
+
             for sampling_method in sampling_opts:
+                args.sampling_method = sampling_method
+                args = create_outdir(args)
                 print(f"\n======Running {sampling_method, dataset_name, us_state, outcome, group, nsample_pilot, nsample, sim_fract}=========\n")
-                df, metrics = run(args, sampling_method, nsample_pilot, nsample, sim_fract, dataset_name, us_state, outcome, group, use_weights)
+                assert args.nsample <= X_full.shape[0], "Sample size should be less than population size"
+                
+                df, metrics = run(rng, args, X_full, Y_full, metrics_true)
+                
                 errors.append(metrics)
                 print(f"\nDesired nsample: {metrics['NumberSamplesMainDesired']}, sim_fract: {sim_fract}, frac_A1_true {metrics['FractMajGroupPopulation']}")
                 dfs.append(df)
