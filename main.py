@@ -313,7 +313,7 @@ def get_sample_stdev_group(rng, args, X_full, Y_full, X_pilot, P_pilot, S_pilot,
     X, P, S, Y = np.array(X), np.array(P), np.array(S), np.array(Y)
     if len(X.shape)==1:
         X = X[:,np.newaxis]
-    print(f"Stdev sampled. Stdev A0,A1={(stdev_A0,stdev_A1)}, group sizes population={(n_full_A0,n_full_A1)}, mean A0,A1={(mean_A0,mean_A1)}, fraction={sample_ratio}, number of samples A0,A1={S[X[:,1]!=1].sum(),S[X[:,1]==1].sum()}, achieved rate A0,A1={(np.mean(S[X[:,1]!=1]),np.mean(S[X[:,1]==1]))}, desired rate A0,A1={(rate_A0,rate_A1)}")
+    print(f"{target_metric} sampled. Stdev A0,A1={(stdev_A0,stdev_A1)}, group sizes population={(n_full_A0,n_full_A1)}, mean A0,A1={(mean_A0,mean_A1)}, fraction={sample_ratio}, number of samples A0,A1={S[X[:,1]!=1].sum(),S[X[:,1]==1].sum()}, achieved rate A0,A1={(np.mean(S[X[:,1]!=1]),np.mean(S[X[:,1]==1]))}, desired rate A0,A1={(rate_A0,rate_A1)}")
     return X, P, S, Y
 
 def run_exp(rng, args, X_full, Y_full, expid):
@@ -514,40 +514,39 @@ def plot_hist_markers(Y_list, true_Y_mean):
     plt.vlines(x=true_Y_mean, label='true mean', ymin=0, ymax=10, linestyle='-')
     plt.legend()
 
-def main(args, datasets, fractmaj_opts, sampling_opts, use_weights):
+def main(args, datasets, sampling_opts, use_weights):
     dfs = []
     errors = []
 
-    for (dataset_name, us_state, outcome, group, nsample_pilot, nsample) in datasets:
-        for sim_fract in fractmaj_opts:
-            # Get population data
-            args.nsample_pilot = nsample_pilot
-            args.nsample = nsample
-            args.sim_fract = sim_fract
-            args.dataset_name = dataset_name
-            args.us_state = us_state
-            args.outcome = outcome
-            args.group = group
-            args.use_weights = use_weights
+    for (dataset_name, us_state, outcome, group, nsample_pilot, nsample, sim_fract) in datasets:
+        # Get population data
+        args.nsample_pilot = nsample_pilot
+        args.nsample = nsample
+        args.sim_fract = sim_fract
+        args.dataset_name = dataset_name
+        args.us_state = us_state
+        args.outcome = outcome
+        args.group = group
+        args.use_weights = use_weights
 
-            rng = np.random.default_rng(seed=1)
-            X_full, Y_full = Dataset(rng, args).population_data()
-            metrics_true = compute_mean_actual(X_full, Y_full)
+        rng = np.random.default_rng(seed=1)
+        X_full, Y_full = Dataset(rng, args).population_data()
+        metrics_true = compute_mean_actual(X_full, Y_full)
 
-            for sampling_method in sampling_opts:
-                args.sampling_method = sampling_method
-                args = create_outdir(args)
-                print(f"\n======Running {sampling_method, dataset_name, us_state, outcome, group, nsample_pilot, nsample, sim_fract}=========\n")
-                assert args.nsample <= X_full.shape[0], "Sample size should be less than population size"
-                
-                df, metrics = run(rng, args, X_full, Y_full, metrics_true)
-                
-                errors.append(metrics)
-                print(f"\nDesired nsample: {metrics['NumberSamplesMainDesired']}, sim_fract: {sim_fract}, frac_A1_true {metrics['FractMajGroupPopulation']}")
-                dfs.append(df)
-                df_concat = pd.concat(dfs, ignore_index=True)
-                df_concat.to_csv(os.path.join(os.path.join(STORAGE_PATH, args.results_outdir), f'results_mean_{args.dataset_id}id.csv')) 
-                pd.DataFrame(errors).to_csv(os.path.join(os.path.join(STORAGE_PATH, args.results_outdir), f'results_error_{args.dataset_id}id.csv'))
+        for sampling_method in sampling_opts:
+            args.sampling_method = sampling_method
+            args = create_outdir(args)
+            print(f"\n======Running {sampling_method, dataset_name, us_state, outcome, group, nsample_pilot, nsample, sim_fract}=========\n")
+            assert args.nsample <= X_full.shape[0], "Sample size should be less than population size"
+            
+            df, metrics = run(rng, args, X_full, Y_full, metrics_true)
+            
+            errors.append(metrics)
+            print(f"\nDesired nsample: {metrics['NumberSamplesMainDesired']}, sim_fract: {sim_fract}, frac_A1_true {metrics['FractMajGroupPopulation']}")
+            dfs.append(df)
+            df_concat = pd.concat(dfs, ignore_index=True)
+            df_concat.to_csv(os.path.join(os.path.join(STORAGE_PATH, args.results_outdir), f'results_mean_{args.dataset_id}id.csv')) 
+            pd.DataFrame(errors).to_csv(os.path.join(os.path.join(STORAGE_PATH, args.results_outdir), f'results_error_{args.dataset_id}id.csv'))
 
     df_concat = pd.concat(dfs, ignore_index=True)
     df_concat.to_csv(os.path.join(os.path.join(STORAGE_PATH, args.results_outdir), f'results_mean_{args.dataset_id}id.csv'))
@@ -558,7 +557,7 @@ def plot_means(args, dfs, datasets):
     df_concat = pd.concat(dfs, ignore_index=True)
     metrics_to_plot = ['Overall','MajGroup','MinGroup','Difference','DER','Theils']
 
-    for (dataset_name, us_state, outcome, group, nsample_pilot, nsample) in datasets:
+    for (dataset_name, us_state, outcome, group, nsample_pilot, nsample, sim_fract) in datasets:
         for metric in metrics_to_plot:
             plt.figure()
             if us_state is not None:
@@ -593,7 +592,7 @@ def plot_errors(args, errors, datasets):
     errors = pd.DataFrame(errors)
     metrics_to_plot = ['ErrorOverall','ErrorMajGroup','ErrorMinGroup','ErrorDifference','ErrorDER','ErrorTheils']
 
-    for (dataset_name, us_state, outcome, group, nsample_pilot, nsample) in datasets:
+    for (dataset_name, us_state, outcome, group, nsample_pilot, nsample, sim_fract) in datasets:
         for metric in metrics_to_plot:
             plt.figure()
             if us_state is not None:
@@ -619,7 +618,7 @@ def plot_errors(args, errors, datasets):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--results_outdir', default='output_acs_model_metrics_2/')
+    parser.add_argument('--results_outdir', default='output_synthetic_metrics/')
     parser.add_argument('--in_filename', default='')
     parser.add_argument('--dataset_id', default=-1, type=int)
     parser.add_argument('--repeat', default=1, type=int)
@@ -636,42 +635,122 @@ if __name__ == "__main__":
 
     args = create_outdir(args)
 
-    # samples in (pilot, main)
-    nsample_opts = [
-        (500, 2000),
-        (500, 500),
-        (500, 1000),
-        (500, 1500),
-        (200, 1000),
-    ]
-    fractmaj_opts = [None]
     sampling_opts = [
         'uniform', 'equal',
+        'stdev_overall',
         'stdev_diff',
         'oracle_stdev_diff',
         'stdev_der',
         'oracle_stdev_der',
     ]
+    # ACS model
+    # samples in (pilot, main)
+    # nsample_opts = [
+    #     (500, 2000),
+    #     (500, 500),
+    #     (500, 1000),
+    #     (500, 1500),
+    #     (250, 1000),
+    # ]
+    # fractmaj_opts = [None]
+    # use_weights = False
+    # OUTCOMES = [
+    #     'income_binary',
+    #     'income_real',
+    #     'travel_binary',
+    #     'travel_real',
+    #     # # 'coverage_binary',
+    # ]
+    # STATES = [
+    #     'NY',
+    #     # 'TX',
+    #     'CA',
+    # ]
+    # DATASET_OPTS = [
+    #     ('acs_model', state, outcome, 'BlackorAA', nsample_pilot, nsample_main, sim_fract)\
+    #         for state in STATES for outcome in OUTCOMES for (nsample_pilot, nsample_main) in nsample_opts for sim_fract in fractmaj_opts
+    # ]
+
+    # # ACS
+    # # samples in (pilot, main)
+    # nsample_opts = [
+    #     (200, 200),
+    #     (200, 500),
+    #     (200, 1000),
+    #     # (200, 1500),
+    #     (500, 1000),
+    #     (500, 1500),
+    #     (500, 2000),
+    #     (500, 2500),
+    # ]
+    # fractmaj_opts = [None]
+    # use_weights = True
+    # OUTCOMES = [
+    #     'PINCP',
+    #     'WAGP',
+    #     'PERNP',
+    # ]
+    # STATES = [
+    #     'NY',
+    #     'NV', 'AR', 'CT', 'IL',
+    #     'TN', 'VA',
+    #     # 'CO',
+    # ]
+    # DATASET_OPTS = [
+    #     ('acs', state, outcome, 'BlackorAA', nsample_pilot, nsample_main, sim_fract)\
+    #         for state in STATES for outcome in OUTCOMES for (nsample_pilot, nsample_main) in nsample_opts for sim_fract in fractmaj_opts
+    # ]
+
+    # BRFSS
+    # # samples in (pilot, main)
+    # nsample_opts = [
+    #     (500, 2000),
+    #     (500, 500),
+    #     (500, 1000),
+    #     (500, 1500),
+    #     (500, 2500),
+    # ]
+    # fractmaj_opts = [None]
+    # use_weights = True
+    # OUTCOMES = [
+    #     'diabindicator',
+    #     'sleeptime',
+    #     'diabage',
+    # ]
+    # STATES = [
+    #     'all',
+    # ]
+    # GROUPS = [
+    #     'BlackorAA',
+    #     # 'Hispanic',
+    #     # 'Asian',
+    # ]
+    # DATASET_OPTS = [
+    #     ('brfss', state, outcome, group, nsample_pilot, nsample_main, sim_fract)\
+    #         for state in STATES for outcome in OUTCOMES for group in GROUPS for (nsample_pilot, nsample_main) in nsample_opts for sim_fract in fractmaj_opts
+    # ]
+    # DATASET_OPTS = [x for x in DATASET_OPTS if not ((x[2]=='diabindicator') and (x[3]=='Asian')) and not ((x[2]=='diabage') and (x[3]=='Asian') and (x[4]==250))]
+
+    # Synthetic
+    # samples in (pilot, main)
+    nsample_opts = [
+        (100, 100),
+        # (100, 500),
+        (100, 1000),
+        # (100, 1500),
+        (200, 1000),
+    ]
+    fractmaj_opts = [
+        0.5, 0.9,
+    ]
     use_weights = False
-    
-    OUTCOMES = [
-        'income_binary',
-        'income_real',
-        'travel_binary',
-        'travel_real'
-        # # 'coverage_binary',
-    ]
-
-    STATES = [
-        'NY',
-        # 'TX',
-        # 'CA',
-    ]
-
+    OUTCOMES = ['outcome']
+    STATES = ['state']
     DATASET_OPTS = [
-        ('acs_model', state, outcome, 'BlackorAA', nsample_pilot, nsample_main)\
-            for state in STATES for outcome in OUTCOMES for (nsample_pilot, nsample_main) in nsample_opts
+        ('synthetic', state, outcome, 'Group1', nsample_pilot, nsample_main, sim_fract)\
+            for state in STATES for outcome in OUTCOMES for (nsample_pilot, nsample_main) in nsample_opts for sim_fract in fractmaj_opts
     ]
+
     print(len(DATASET_OPTS), DATASET_OPTS)
 
     if args.dataset_id==-1:
@@ -679,7 +758,7 @@ if __name__ == "__main__":
     else:
         datasets = DATASET_OPTS[args.dataset_id-1 : args.dataset_id]
 
-    means, errors = main(args, datasets, fractmaj_opts, sampling_opts, use_weights)
+    means, errors = main(args, datasets, sampling_opts, use_weights)
     print(means)
     print(errors)
     plot_means(args, means, datasets)
@@ -687,6 +766,8 @@ if __name__ == "__main__":
 
     args.datasets = datasets
     torch.save(args, os.path.join(args.dir, 'args.pt'))
+
+    print('Ends')
 
     sys.exit(0)
 

@@ -3,9 +3,9 @@
 #SBATCH --job-name=dervariability
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --array=1-20
+#SBATCH --array=1-6
 #SBATCH --mem=8GB
-#SBATCH --time=5:00:00
+#SBATCH --time=05:00:00
 #SBATCH --output=dervariability-%A_%a.out
 #SBATCH --mail-type=end
 #SBATCH --mail-user=hs3673@nyu.edu

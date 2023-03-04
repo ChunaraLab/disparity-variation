@@ -1,1 +1,1 @@
-python main.py --dataset_id $1 --repeat 100 --true_mean_samples 1000000 --npop 100000
+python main.py --dataset_id $1 --repeat 1000 --true_mean_samples 100000000 --npop 10000

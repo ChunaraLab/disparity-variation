@@ -30,6 +30,8 @@ import pandas as pd
 NOT_SAMP = -999
 
 """
+ACS
+
 Numeric variables
 PWGTP - person weight
 FINCP - family income
@@ -68,7 +70,15 @@ Recoded detailed race code
 7 .Native Hawaiian and Other Pacific Islander alone 
 8 .Some Other Race alone 
 9 .Two or More Races
+
+BRFSS
+
+Codebook https://www.cdc.gov/brfss/annual_data/2014/pdf/codebook14_llcp.pdf
+diabindicator DIABETE3==1 - diabetes indicator except when during pregnancy for female respondents
+sleeptime SLEPTIM1 - average sleep in 24 hours
+diabage DIABAGE2 - age when diagnosed with diabetes
 """
+
 ACS_RACE_CODE = {
     'White': 1,
     'BlackorAA': 2,
@@ -385,12 +395,12 @@ def get_brfss_data(rng, npop, frac, outcome, us_state, group, use_weights=False)
     '''
     data_source = pd.read_csv('data/2014_diabage_sleeptime.csv')
     data_source = data_source[data_source['_RACE']!=9.0]  # remove responses Don’t know/Not sure/Refused
-    if us_state is not None:
+    if us_state=='all':
+        data = data_source
+    else:
         state_fips_codes = pd.read_csv('data/us-state-ansi-fips.csv')
         us_state_code = state_fips_codes[state_fips_codes[' stusps']==f' {us_state}'][' st'].item()
         data = data_source[data_source['_STATE']==us_state_code]
-    else:
-        data = data_source
     if outcome=='diabage':
         data = data[~data['DIABAGE2'].isin([98.0,99.0])]
         Y_acs = data['DIABAGE2']
@@ -617,7 +627,7 @@ def sigma_group_sample(rng, x, rate_A0, rate_A1):
 class Simulate_data_synthetic(object):
     def __init__(self, rng, noise, fract, mu=24, delta_mu=4):
         self.rng = rng
-        self.dim = 5 # including intercept
+        self.dim = 6 # including intercept
         self.step = -1
         self.noise = noise
         self.fract = fract
@@ -641,7 +651,7 @@ class Simulate_data_synthetic(object):
         # self.Y = self.mu + self.delta_mu*(1-A) + self.rng.standard_t(df= 1 + int(A*self.noise))
         # self.Y = 24 + 3*A - 4*X1 - 6*X2 - 3*X3 - 1.5*X2*X3 + self.rng.normal(loc=0,scale=4 + (1-A)*self.noise)
         # self.Y = 24 + 3*A - 4*X1 - 6*X2 - 3*X3 - 1.5*X2*X3 + self.rng.standard_t(df= 2 + int(A*self.noise))
-        self.X = np.array([1,A,X1,X2,X3])
+        self.X = np.array([1,A,1,X1,X2,X3])
 
         # # Variance depending on X
         # # X1 = self.rng.uniform(-1,1)
