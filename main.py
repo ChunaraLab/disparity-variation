@@ -17,6 +17,7 @@ import os
 import sys
 from pathlib import Path
 import torch
+import json
 
 from data import gendata_single
 from data import sigma_uniform_sample
@@ -188,7 +189,8 @@ def metrics_inverse_propensity_weighted(X, P, S, Y):
 
 SMALL_NUMBER = 1e-6
 
-def compute_mean_actual(X, Y):
+def compute_mean_actual(rng, args, X, Y):
+    print(f'Large data for true mean X, Y shapes {X.shape,Y.shape}')
     P = np.ones((X.shape[0],))
     S = P
     Y_mean, Y_A1_mean, Y_A0_mean, diff_mean, der, theils, frac_A1 = metrics_uniform(X, P, S, Y)
@@ -428,6 +430,8 @@ def create_outdir(args):
     args.dir = os.path.join(os.path.join(STORAGE_PATH, args.results_outdir), dt)
     Path(args.dir).mkdir(parents=True, exist_ok=True)
     torch.save(args, os.path.join(args.dir, 'args.pt'))
+    with open(os.path.join(args.dir, 'cmd.txt'), 'w') as fw:
+        json.dump(args.__dict__, fw)
     return args
 
 def run(rng, args, X_full, Y_full, metrics_true):
@@ -529,9 +533,14 @@ def main(args, datasets, sampling_opts, use_weights):
         args.group = group
         args.use_weights = use_weights
 
+        # Extremely large sample to compute 'true' means
+        assert args.true_mean_samples >= args.npop, "Data for true means should be bigger than population size"
         rng = np.random.default_rng(seed=1)
-        X_full, Y_full = Dataset(rng, args).population_data()
-        metrics_true = compute_mean_actual(X_full, Y_full)
+        X_true, Y_true = Dataset(rng, args).population_data(args.true_mean_samples)
+        metrics_true = compute_mean_actual(rng, args, X_true, Y_true)
+        # Select population
+        X_full, Y_full = X_true[:args.npop], Y_true[:args.npop]
+        print(f'Population X, Y shapes {X_full.shape,Y_full.shape}')
 
         for sampling_method in sampling_opts:
             args.sampling_method = sampling_method
@@ -624,7 +633,7 @@ if __name__ == "__main__":
     parser.add_argument('--repeat', default=1, type=int)
     parser.add_argument('--npop', default=10000, type=int)
     parser.add_argument('--sampling_method', default='uniform', type=str)  # uniform, equal, stdev
-    parser.add_argument('--sim_noise', default=1.0, type=float)
+    parser.add_argument('--sim_noise', default=40, type=float)
     parser.add_argument('--sim_fract', default=0.55, type=float)
     parser.add_argument('--nprocs', default=4, type=int)
     parser.add_argument('--true_mean_samples', default=1000000, type=int)
@@ -734,14 +743,15 @@ if __name__ == "__main__":
     # Synthetic
     # samples in (pilot, main)
     nsample_opts = [
-        (100, 100),
-        # (100, 500),
+        # (100, 100),
+        (100, 500),
         (100, 1000),
-        # (100, 1500),
+        (100, 1500),
+        (100, 2000),
         (200, 1000),
     ]
     fractmaj_opts = [
-        0.5, 0.9,
+        0.5, 0.8,
     ]
     use_weights = False
     OUTCOMES = ['outcome']
