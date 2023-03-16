@@ -627,7 +627,7 @@ def plot_errors(args, errors, datasets):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--results_outdir', default='output_synthetic_metrics/')
+    parser.add_argument('--results_outdir', default='output_acs_model_metrics/')
     parser.add_argument('--in_filename', default='')
     parser.add_argument('--dataset_id', default=-1, type=int)
     parser.add_argument('--repeat', default=1, type=int)
@@ -652,34 +652,37 @@ if __name__ == "__main__":
         'stdev_der',
         'oracle_stdev_der',
     ]
+    #### Comment/uncomment from here to change dataset
     # ACS model
     # samples in (pilot, main)
-    # nsample_opts = [
-    #     (500, 2000),
-    #     (500, 500),
-    #     (500, 1000),
-    #     (500, 1500),
-    #     (250, 1000),
-    # ]
-    # fractmaj_opts = [None]
-    # use_weights = False
-    # OUTCOMES = [
-    #     'income_binary',
-    #     'income_real',
-    #     'travel_binary',
-    #     'travel_real',
-    #     # # 'coverage_binary',
-    # ]
-    # STATES = [
-    #     'NY',
-    #     # 'TX',
-    #     'CA',
-    # ]
-    # DATASET_OPTS = [
-    #     ('acs_model', state, outcome, 'BlackorAA', nsample_pilot, nsample_main, sim_fract)\
-    #         for state in STATES for outcome in OUTCOMES for (nsample_pilot, nsample_main) in nsample_opts for sim_fract in fractmaj_opts
-    # ]
+    nsample_opts = [
+        (500, 2000),
+        (500, 500),
+        (500, 1000),
+        (500, 1500),
+        (250, 1000),
+    ]
+    fractmaj_opts = [None]
+    use_weights = False
+    OUTCOMES = [
+        'income_binary',
+        'income_real',
+        'travel_binary',
+        'travel_real',
+        # # 'coverage_binary',
+    ]
+    STATES = [
+        'NY',
+        # 'TX',
+        'CA',
+    ]
+    DATASET_OPTS = [
+        ('acs_model', state, outcome, 'BlackorAA', nsample_pilot, nsample_main, sim_fract)\
+            for state in STATES for outcome in OUTCOMES for (nsample_pilot, nsample_main) in nsample_opts for sim_fract in fractmaj_opts
+    ]
+    #### Comment/uncomment up to here to change dataset
 
+    #### Comment/uncomment from here to change dataset
     # # ACS
     # # samples in (pilot, main)
     # nsample_opts = [
@@ -709,7 +712,9 @@ if __name__ == "__main__":
     #     ('acs', state, outcome, 'BlackorAA', nsample_pilot, nsample_main, sim_fract)\
     #         for state in STATES for outcome in OUTCOMES for (nsample_pilot, nsample_main) in nsample_opts for sim_fract in fractmaj_opts
     # ]
+    #### Comment/uncomment up to here to change dataset
 
+    #### Comment/uncomment from here to change dataset
     # BRFSS
     # # samples in (pilot, main)
     # nsample_opts = [
@@ -742,24 +747,25 @@ if __name__ == "__main__":
 
     # Synthetic
     # samples in (pilot, main)
-    nsample_opts = [
-        # (100, 100),
-        (100, 500),
-        (100, 1000),
-        (100, 1500),
-        (100, 2000),
-        (200, 1000),
-    ]
-    fractmaj_opts = [
-        0.5, 0.8,
-    ]
-    use_weights = False
-    OUTCOMES = ['outcome']
-    STATES = ['state']
-    DATASET_OPTS = [
-        ('synthetic', state, outcome, 'Group1', nsample_pilot, nsample_main, sim_fract)\
-            for state in STATES for outcome in OUTCOMES for (nsample_pilot, nsample_main) in nsample_opts for sim_fract in fractmaj_opts
-    ]
+    # nsample_opts = [
+    #     # (100, 100),
+    #     (100, 500),
+    #     (100, 1000),
+    #     (100, 1500),
+    #     (100, 2000),
+    #     (200, 1000),
+    # ]
+    # fractmaj_opts = [
+    #     0.5, 0.8,
+    # ]
+    # use_weights = False
+    # OUTCOMES = ['outcome']
+    # STATES = ['state']
+    # DATASET_OPTS = [
+    #     ('synthetic', state, outcome, 'Group1', nsample_pilot, nsample_main, sim_fract)\
+    #         for state in STATES for outcome in OUTCOMES for (nsample_pilot, nsample_main) in nsample_opts for sim_fract in fractmaj_opts
+    # ]
+    #### Comment/uncomment upto here to change dataset
 
     print(len(DATASET_OPTS), DATASET_OPTS)
 
