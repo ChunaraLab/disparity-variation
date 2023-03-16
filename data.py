@@ -313,7 +313,7 @@ def create_acs_query_object_model(outcome):
 def get_acs_data(rng, npop, frac, outcome, us_state, group, use_weights=False):
     data_source = ACSDataSource(survey_year='2018', horizon='1-Year', survey='person',
                                 root_dir='data')
-    data = data_source.get_data(states=[us_state], download=False)
+    data = data_source.get_data(states=[us_state], download=True)
     ACSQuery = create_acs_query_object(outcome)
     X_acs, Y_acs, G_acs = ACSQuery.df_to_pandas(data)
     Y_acs = Y_acs.to_numpy().squeeze()
@@ -483,7 +483,7 @@ def get_brfss_data(rng, npop, frac, outcome, us_state, group, use_weights=False)
 def get_acs_data_model(rng, npop, frac, outcome, us_state, group, use_weights=False):
     data_source = ACSDataSource(survey_year='2018', horizon='1-Year', survey='person',
                               root_dir='data')
-    data = data_source.get_data(states=[us_state], download=False)
+    data = data_source.get_data(states=[us_state], download=True)
     ACSQuery = create_acs_query_object_model(outcome)
     X_acs, Y_acs, G_acs = ACSQuery.df_to_pandas(data)
     Y_acs = Y_acs.to_numpy().squeeze()
